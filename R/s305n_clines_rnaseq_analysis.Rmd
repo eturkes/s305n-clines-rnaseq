@@ -108,8 +108,10 @@ if (!dir.exists(cache_dir)) {
 # Prep Data
 
 ```{r}
-synthego <- read.csv(file.path(data_dir, "Final counts_RNAseq_Synthego.txt"), sep = "\t", row.names = 1)
-ncrad <- read.csv(file.path(data_dir, "gene_count_NCRAD.txt"), sep = "\t", row.names = 1)
+data <- vector("list", length = 3)
+
+data[[1]] <- read.csv(file.path(data_dir, "Final counts_RNAseq_Synthego.txt"), sep = "\t", row.names = 1)
+data[[2]] <- read.csv(file.path(data_dir, "gene_count_NCRAD.txt"), sep = "\t", row.names = 1)
 
 # When stripping bowles data to plain ENSEMBL IDs there are duplicates.
 # We collapse these duplicates to the mean of each set per sample.
@@ -117,34 +119,36 @@ ncrad <- read.csv(file.path(data_dir, "gene_count_NCRAD.txt"), sep = "\t", row.n
 # ---------------------------------------------------------------------
 cache <- file.path(cache_dir, "bowles.qs")
 if (file.exists(cache)) {
-  bowles <- qs::qread(cache)
+  data[[3]] <- qs::qread(cache)
 } else {
-  bowles <- read.csv(file.path(data_dir, "GSE260517_star_gene.txt"), sep = "\t")
-  bowles$gid <- sub("\\..*", "", bowles$gid)
-  bowles <- aggregate(. ~ gid, data = bowles, FUN = mean)
-  rownames(bowles) <- bowles$gid
-  bowles$gid <- NULL
-  qs::qsave(bowles, file = cache)
+  data[[3]] <- read.csv(file.path(data_dir, "GSE260517_star_gene.txt"), sep = "\t")
+  data[[3]]$gid <- sub("\\..*", "", data[[3]]$gid)
+  data[[3]] <- aggregate(. ~ gid, data = data[[3]], FUN = mean)
+  rownames(data[[3]]) <- data[[3]]$gid
+  data[[3]]$gid <- NULL
+  qs::qsave(data[[3]], file = cache)
 }
 # ---------------------------------------------------------------------
+
+names(data) <- c("synthego", "ncrad", "bowles")
 ```
 
 **Preview of Synthego RNAseq Data**
 
 ```{r}
-datatable_download(synthego[1:5, 1:5])
+datatable_download(data$synthego[1:5, 1:5])
 ```
 
 **Preview of NCRAD RNAseq Data**
 
 ```{r}
-datatable_download(ncrad[1:5, 1:5])
+datatable_download(data$ncrad[1:5, 1:5])
 ```
 
 **Preview of NCRAD RNAseq Data from @bowles_development_2024**
 
 ```{r}
-datatable_download(bowles[1:5, 1:5])
+datatable_download(data$bowles[1:5, 1:5])
 ```
 
 # References
