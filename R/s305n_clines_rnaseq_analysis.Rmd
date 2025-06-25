@@ -184,6 +184,34 @@ datatable_download(data$ncrad[1:5, ])
 datatable_download(data$bowles[1:5, ])
 ```
 
+# Differential Expression
+
+```{r}
+# Create a list of metadata that will be used for design matrices.
+# ----------------------------------------------------------------
+design <- vector("list", length = 3)
+
+cols <- colnames(data[[1]])
+design[[1]] <- data.frame(
+  sample = cols,
+  timepoint = factor(sub(".*(21|28).*", "\\1", cols)),
+  genotype = factor(sub("^(WT|D4).*", "\\1", cols))
+)
+cols <- colnames(data[[2]])
+design[[2]] <- data.frame(
+  sample = cols,
+  timepoint = factor(sub(".*_D(\\d+)$", "\\1", cols)),
+  genotype = factor(sub(".*_(NNBB7|HCB8)_D\\d+$", "\\1", cols))
+)
+cols <- colnames(data[[3]])
+design[[3]] <- data.frame(
+  sample = cols,
+  timepoint = factor(sub(".*_(6W|8W)$", "\\1", cols)),
+  genotype = factor(sub(".*_(HCB8|NWBB7)_[68]W$", "\\1", cols))
+)
+# ----------------------------------------------------------------
+```
+
 # References
 
 This is the concluding section of the document, where we output the `sessionInfo`, and create a bibliography for works cited.
