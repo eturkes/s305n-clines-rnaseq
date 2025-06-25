@@ -2,13 +2,13 @@ version: "3"
 
 services:
   all:
-    image: eturkes/s305n-clines-rnaseq:v2
+    image: eturkes/s305n-clines-rnaseq:v3
     volumes:
       - ".:/home/rstudio/s305n-clines-rnaseq:rw"
     command: Rscript -e "source('/home/rstudio/s305n-clines-rnaseq/R/run_all.R')"
 
   rstudio:
-    image: eturkes/s305n-clines-rnaseq:v2
+    image: eturkes/s305n-clines-rnaseq:v3
     volumes:
       - ".:/home/rstudio/s305n-clines-rnaseq:rw"
     ports:

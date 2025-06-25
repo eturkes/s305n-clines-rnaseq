@@ -74,6 +74,11 @@ We also compare bulk RNAseq data from @bowles_development_2024, which used the s
 # the License, but only in their entirety and only with respect to the Combined
 # Software.
 
+# Load packages.
+# --------------
+library(conflicted) # Ensure packages do not have namespace conflicts.
+# --------------
+
 # Add paths.
 # ----------
 data_dir <- file.path("..", "data")
