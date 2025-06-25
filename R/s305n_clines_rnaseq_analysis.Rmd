@@ -3,10 +3,12 @@ title: "S305N Cell Lines RNAseq Analysis"
 author:
   - name: "Emir Turkes and Eliona Tsefou, UK DRI at UCL"
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+bibliography: "../s305n-clines-rnaseq.bib"
+biblio-style: apalike
 link-citations: true
 output:
   html_document:
-    code_folding: show
+    code_folding: hide
     number_sections: true
     theme: lumen
     highlight: haddock
@@ -31,6 +33,15 @@ div.tocify {width: 100%;}
 .tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 25px; text-indent: 0;}
 div.main-container {max-width: none; width: 100%;}
 </style>
+
+*This file is a part of [s305n-clines-rnaseq](https://github.com/eturkes/s305n-clines-rnaseq).*
+
+The table of contents in the top left is clickable and can be used to quickly navigate the document.
+To toggle the visibility of code, use the `CODE` toggles at the top right of chunks.
+The toggle at the start of the document controls the visibility of all chunks.
+
+This analysis is a comparison of bulk RNAseq data from human iPSC neuronal cell lines obtained from Synthego and NCRAD with the MAPT S305 mutation.
+We also compare bulk RNAseq data from @bowles_development_2024, which used the same NCRAD lines.
 
 ```{r}
 # Copyright (c) Emir Turkes, Eliona Tsefou, UK DRI at UCL
