@@ -83,6 +83,11 @@ packages <- c("edgeR", "ComplexHeatmap")
 lapply(packages, library)
 # --------------
 
+# Define global settings.
+# -----------------------
+knitr::opts_chunk$set(fig.width = 7, fig.height = 10, dpi = 96)
+# -----------------------
+
 # Adds download buttons and horizontal scrolling to DT::datatable.
 # ----------------------------------------------------------------
 datatable_download <- function(dt) {
@@ -224,20 +229,30 @@ cols <- colnames(data[[1]])
 meta[[1]] <- data.frame(
   sample = cols,
   timepoint = factor(sub(".*(21|28).*", "\\1", cols)),
-  genotype = factor(sub("^(WT|D4).*", "\\1", cols))
+  genotype = factor(sub("^(WT|D4).*", "\\1", cols)),
+  dataset = rep("Synthego", times = length(cols)),
+  group = ifelse(sub("^(WT|D4).*", "\\1", cols) == "WT", yes = "WT", no = "S305N")
 )
 cols <- colnames(data[[2]])
 meta[[2]] <- data.frame(
   sample = cols,
   timepoint = factor(sub(".*_D(\\d+)$", "\\1", cols)),
-  genotype = factor(sub(".*_(NNBB7|HCB8)_D\\d+$", "\\1", cols))
+  genotype = factor(sub(".*_(NNBB7|HCB8)_D\\d+$", "\\1", cols)),
+  dataset = rep("NCRAD", times = length(cols)),
+  group = ifelse(sub(".*_(NNBB7|HCB8)_D\\d+$", "\\1", cols) == "NNBB7", yes = "WT", no = "S305N")
 )
 cols <- colnames(data[[3]])
 meta[[3]] <- data.frame(
   sample = cols,
   timepoint = factor(sub(".*_(6W|8W)$", "\\1", cols)),
-  genotype = factor(sub(".*_(HCB8|NWBB7)_[68]W$", "\\1", cols))
+  genotype = factor(sub(".*_(HCB8|NWBB7)_[68]W$", "\\1", cols)),
+  dataset = rep("Bowles NCRAD", times = length(cols)),
+  group = ifelse(sub(".*_(HCB8|NWBB7)_[68]W$", "\\1", cols) == "NWBB7", yes = "WT", no = "S305N")
 )
+
+meta_comb <- do.call(rbind, meta)
+meta_comb$dataset <- factor(meta_comb$dataset, levels = c("Synthego", "NCRAD", "Bowles NCRAD"))
+meta_comb$group <- factor(meta_comb$group, levels = c("WT", "S305N"))
 # ----------------------------------------------------------------
 
 # Run limma-trend pipeline on each dataset.
@@ -330,22 +345,43 @@ datatable_download_exp(results$ncrad)
 
 # Visualisation
 
-## D21
+```{r}
+row_anno <- rowAnnotation(
+  DEGs = anno_block(
+    labels = c("DEG in Synthego Only", "DEG in NCRAD Only"),
+    labels_gp = gpar(fontsize = 10),
+    labels_rot = 90
+  ),
+  annotation_name_side = "top",
+  gap = unit(1, "mm")
+)
+
+colour <- scales::hue_pal()(7)
+colour1 <- colour[c(1, 3, 5)]
+colour2 <- c("lightgray", "darkgray")
+names(colour1) <- levels(meta_comb$dataset)
+names(colour2) <- levels(meta_comb$group)
+```
+
+## D21 (6W in Bowles Data) WT vs. HOM S305N
 
 ```{r}
 timepoint <- "21"
 
-features <- c()
+features <- vector("list", length = 3)
 for (i in seq_along(results)) {
   tmp <- results[[i]]
-  tmp <- tmp[ , grepl("P.value.adj", colnames(tmp)), drop = FALSE]
+  tmp <- tmp[ , grepl("P.value.adj|Coef", colnames(tmp)), drop = FALSE]
   tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
-  features <- c(features, rownames(tmp[tmp[ , 1] < 0.05, , drop = FALSE]))
+  tmp <- tmp[tmp[ , 2] < 0.05, , drop = FALSE]
+  tmp <- tmp[order(tmp[ , 2]), , drop = FALSE]
+  features[[i]] <- rownames(tmp[tmp[ , 1] > 0, , drop = FALSE])
+  features[[i]] <- c(features[[i]], rownames(tmp[tmp[ , 1] < 0, , drop = FALSE]))
 }
-features <- unique(features)
+features[[3]] <- intersect(features[[1]], features[[2]])
 
 for (i in seq_along(data)) {
-  tmp <- data[[i]][rownames(data[[i]]) %in% features, ]
+  tmp <- data[[i]][rownames(data[[i]]) %in% unlist(features), ]
   if (i != 3) {
     tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
   } else {
@@ -363,7 +399,10 @@ for (i in seq_along(data)) {
     mat <- cbind(mat, tmp)
   }
 }
+
+mat <- mat[match(unlist(features), rownames(mat)), ]
 mat <- mat[complete.cases(mat), ]
+features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 
 gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
 gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]
@@ -371,25 +410,79 @@ rownames(mat) <- gene_anno_sub$symbols
 
 mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
 
-Heatmap(mat, cluster_columns = FALSE)
+meta_comb_sub <- meta_comb[meta_comb$sample %in% colnames(mat), ]
+meta_comb_sub <- meta_comb_sub[match(colnames(mat), meta_comb_sub$sample), ]
+
+top_anno <- HeatmapAnnotation(
+  Dataset = meta_comb_sub$dataset,
+  Genotype = meta_comb_sub$group,
+  col = list(
+    Dataset = colour1,
+    Genotype = colour2
+  ),
+  annotation_name_side = "right",
+  annotation_name_gp = gpar(fontsize = 10),
+  annotation_legend_param = list(
+    Dataset = list(
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    ),
+    Genotype = list(
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    )
+  )
+)
+
+draw(
+  Heatmap(
+    mat,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = factor(
+      c(
+        rep("DEG in Synthego Only", times = length(features[[1]])),
+        rep("DEG in NCRAD Only", times = length(features[[2]]))
+      ),
+      levels = c("DEG in Synthego Only", "DEG in NCRAD Only")
+    ),
+    column_split = meta_comb_sub$dataset,
+    left_annotation = row_anno,
+    top_annotation = top_anno,
+    row_title = NULL,
+    row_names_gp = gpar(fontsize = 8),
+    column_title_gp = gpar(fontsize = 10, fontface = "bold"),
+    show_column_names = FALSE,
+    heatmap_legend_param = list(
+      title = "Scaled Log2CPM",
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    )
+  ),
+  heatmap_legend_side = "right",
+  merge_legend = TRUE
+)
 ```
 
-## D28
+## D28 (8W in Bowles Data) WT vs. HOM S305N
 
 ```{r}
 timepoint <- "28"
 
-features <- c()
+features <- vector("list", length = 3)
 for (i in seq_along(results)) {
   tmp <- results[[i]]
-  tmp <- tmp[ , grepl("P.value.adj", colnames(tmp)), drop = FALSE]
+  tmp <- tmp[ , grepl("P.value.adj|Coef", colnames(tmp)), drop = FALSE]
   tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
-  features <- c(features, rownames(tmp[tmp[ , 1] < 0.05, , drop = FALSE]))
+  tmp <- tmp[tmp[ , 2] < 0.05, , drop = FALSE]
+  tmp <- tmp[order(tmp[ , 2]), , drop = FALSE]
+  features[[i]] <- rownames(tmp[tmp[ , 1] > 0, , drop = FALSE])
+  features[[i]] <- c(features[[i]], rownames(tmp[tmp[ , 1] < 0, , drop = FALSE]))
 }
-features <- unique(features)
+features[[3]] <- intersect(features[[1]], features[[2]])
 
 for (i in seq_along(data)) {
-  tmp <- data[[i]][rownames(data[[i]]) %in% features, ]
+  tmp <- data[[i]][rownames(data[[i]]) %in% unlist(features), ]
   if (i != 3) {
     tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
   } else {
@@ -407,7 +500,10 @@ for (i in seq_along(data)) {
     mat <- cbind(mat, tmp)
   }
 }
+
+mat <- mat[match(unlist(features), rownames(mat)), ]
 mat <- mat[complete.cases(mat), ]
+features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 
 gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
 gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]
@@ -415,7 +511,58 @@ rownames(mat) <- gene_anno_sub$symbols
 
 mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
 
-Heatmap(mat, cluster_columns = FALSE)
+meta_comb_sub <- meta_comb[meta_comb$sample %in% colnames(mat), ]
+meta_comb_sub <- meta_comb_sub[match(colnames(mat), meta_comb_sub$sample), ]
+
+top_anno <- HeatmapAnnotation(
+  Dataset = meta_comb_sub$dataset,
+  Genotype = meta_comb_sub$group,
+  col = list(
+    Dataset = colour1,
+    Genotype = colour2
+  ),
+  annotation_name_side = "right",
+  annotation_name_gp = gpar(fontsize = 10),
+  annotation_legend_param = list(
+    Dataset = list(
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    ),
+    Genotype = list(
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    )
+  )
+)
+
+draw(
+  Heatmap(
+    mat,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = factor(
+      c(
+        rep("DEG in Synthego Only", times = length(features[[1]])),
+        rep("DEG in NCRAD Only", times = length(features[[2]]))
+      ),
+      levels = c("DEG in Synthego Only", "DEG in NCRAD Only")
+    ),
+    column_split = meta_comb_sub$dataset,
+    left_annotation = row_anno,
+    top_annotation = top_anno,
+    row_title = NULL,
+    row_names_gp = gpar(fontsize = 8),
+    column_title_gp = gpar(fontsize = 10, fontface = "bold"),
+    show_column_names = FALSE,
+    heatmap_legend_param = list(
+      title = "Scaled Log2CPM",
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    )
+  ),
+  heatmap_legend_side = "right",
+  merge_legend = TRUE
+)
 ```
 
 # References
