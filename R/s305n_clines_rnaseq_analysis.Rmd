@@ -109,7 +109,7 @@ if (!dir.exists(cache_dir)) {
 
 ```{r}
 synthego <- read.csv(file.path(data_dir, "Final counts_RNAseq_Synthego.txt"), sep = "\t", row.names = 1)
-ncard <- read.csv(file.path(data_dir, "gene_count_NCARD.txt"), sep = "\t", row.names = 1)
+ncrad <- read.csv(file.path(data_dir, "gene_count_NCRAD.txt"), sep = "\t", row.names = 1)
 
 # When stripping bowles data to plain ENSEMBL IDs there are duplicates.
 # We collapse these duplicates to the mean of each set per sample.
@@ -138,7 +138,7 @@ datatable_download(synthego)
 **Full NCRAD RNAseq Data**
 
 ```{r}
-datatable_download(ncard)
+datatable_download(ncrad)
 ```
 
 **Full NCRAD RNAseq Data from @bowles_development_2024**
