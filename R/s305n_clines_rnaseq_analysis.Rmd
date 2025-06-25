@@ -77,15 +77,35 @@ We also compare bulk RNAseq data from @bowles_development_2024, which used the s
 # Add paths.
 # ----------
 data_dir <- file.path("..", "data")
+cache_dir <- file.path("..", "cache")
+if (!dir.exists(cache_dir)) {
+  dir.create(cache_dir, recursive = TRUE)
+}
 # ----------
 ```
 
-# Read Data
+# Prep Data
 
 ```{r}
-synthego <- read.csv(file.path(data_dir, "Final counts_RNAseq_Synthego.txt"), sep = "\t")
-ncard <- read.csv(file.path(data_dir, "gene_count_NCARD.txt"), sep = "\t")
-bowles <- read.csv(file.path(data_dir, "GSE260517_star_gene.txt"), sep = "\t")
+synthego <- read.csv(file.path(data_dir, "Final counts_RNAseq_Synthego.txt"), sep = "\t", row.names = 1)
+ncard <- read.csv(file.path(data_dir, "gene_count_NCARD.txt"), sep = "\t", row.names = 1)
+
+# When stripping bowles data to plain ENSEMBL IDs there are duplicates.
+# We collapse these duplicates to the mean of each set per sample.
+# Since this process is somewhat slow, we cache the cleaned object.
+# ---------------------------------------------------------------------
+cache <- file.path(cache_dir, "bowles.qs")
+if (file.exists(cache)) {
+  bowles <- qs::qread(cache)
+} else {
+  bowles <- read.csv(file.path(data_dir, "GSE260517_star_gene.txt"), sep = "\t")
+  bowles$gid <- sub("\\..*", "", bowles$gid)
+  bowles <- aggregate(. ~ gid, data = bowles, FUN = mean)
+  rownames(bowles) <- bowles$gid
+  bowles$gid <- NULL
+  qs::qsave(bowles, file = cache)
+}
+# ---------------------------------------------------------------------
 ```
 
 # References
