@@ -148,25 +148,40 @@ if (file.exists(cache)) {
 }
 # ---------------------------------------------------------------------
 
+# Subset datasets to samples of interest.
+# ---------------------------------------
+match <- paste(
+  c(
+    "WT21", "WT28", "D421", "D428",
+    "NNBB7_D21", "NNBB7_D28", "HCB8_D21", "HCB8_D28",
+    "NWBB7_6W", "NWBB7_8W", "HCB8_6W", "HCB8_8W"
+  ),
+  collapse = "|"
+)
+data <- lapply(
+  data, function(mat) mat[, grepl(match, colnames(mat)), drop = FALSE]
+)
+# ---------------------------------------
+
 names(data) <- c("synthego", "ncrad", "bowles")
 ```
 
 **Preview of Synthego RNAseq Data**
 
 ```{r}
-datatable_download(data$synthego[1:5, 1:5])
+datatable_download(data$synthego[1:5, ])
 ```
 
 **Preview of NCRAD RNAseq Data**
 
 ```{r}
-datatable_download(data$ncrad[1:5, 1:5])
+datatable_download(data$ncrad[1:5, ])
 ```
 
 **Preview of NCRAD RNAseq Data from @bowles_development_2024**
 
 ```{r}
-datatable_download(data$bowles[1:5, 1:5])
+datatable_download(data$bowles[1:5, ])
 ```
 
 # References
