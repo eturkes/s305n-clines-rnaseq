@@ -79,6 +79,22 @@ We also compare bulk RNAseq data from @bowles_development_2024, which used the s
 library(conflicted) # Ensure packages do not have namespace conflicts.
 # --------------
 
+# Adds download buttons and horizontal scrolling to DT::datatable.
+# ----------------------------------------------------------------
+datatable_download <- function(dt) {
+  DT::datatable(
+    dt,
+    list(
+      scrollX = TRUE, dom = "Blfrtip",
+      buttons = list(
+        "copy", "print", list(extend = "collection", buttons = c("csv", "excel", "pdf"), text = "Download")
+      )
+    ),
+    extensions = "Buttons"
+  )
+}
+# ----------------------------------------------------------------
+
 # Add paths.
 # ----------
 data_dir <- file.path("..", "data")
@@ -111,6 +127,24 @@ if (file.exists(cache)) {
   qs::qsave(bowles, file = cache)
 }
 # ---------------------------------------------------------------------
+```
+
+**Full Synthego RNAseq Data**
+
+```{r}
+datatable_download(synthego)
+```
+
+**Full NCRAD RNAseq Data**
+
+```{r}
+datatable_download(ncard)
+```
+
+**Full NCRAD RNAseq Data from @bowles_development_2024**
+
+```{r}
+datatable_download(bowles)
 ```
 
 # References
