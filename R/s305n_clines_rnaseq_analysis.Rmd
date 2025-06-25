@@ -62,6 +62,19 @@ div.main-container {max-width: none; width: 100%;}
 # prospectively choose to deem waived or otherwise exclude such Section(s) of
 # the License, but only in their entirety and only with respect to the Combined
 # Software.
+
+# Add paths.
+# ----------
+data_dir <- file.path("..", "data")
+# ----------
+```
+
+# Read Data
+
+```{r}
+synthego <- read.csv(file.path(data_dir, "Final counts_RNAseq_Synthego.txt"), sep = "\t")
+ncard <- read.csv(file.path(data_dir, "gene_count_NCARD.txt"), sep = "\t")
+bowles <- read.csv(file.path(data_dir, "GSE260517_star_gene.txt"), sep = "\t")
 ```
 
 # References
