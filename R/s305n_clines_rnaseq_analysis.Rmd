@@ -119,6 +119,18 @@ data <- vector("list", length = 3)
 data[[1]] <- read.csv(file.path(data_dir, "Final counts_RNAseq_Synthego.txt"), sep = "\t", row.names = 1)
 data[[2]] <- read.csv(file.path(data_dir, "gene_count_NCRAD.txt"), sep = "\t", row.names = 1)
 
+# Data uses ENSEMBL IDs by default but includes gene symbols.
+# Use one of the datasets to create a conversion table.
+# Then strip extra information from the datasets that are not counts.
+# -------------------------------------------------------------------
+gene_anno <- data.frame(
+  ensembl = rownames(data[[1]]), symbols = data[[1]]$gene_name
+)
+for (i in 1:2) {
+  data[[i]] <- data[[i]][ , seq(which(colnames(data[[i]]) == "gene_name") - 1)]
+}
+# -------------------------------------------------------------------
+
 # When stripping bowles data to plain ENSEMBL IDs there are duplicates.
 # We collapse these duplicates to the mean of each set per sample.
 # Since this process is somewhat slow, we cache the cleaned object.
