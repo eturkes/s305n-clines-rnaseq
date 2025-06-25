@@ -45,7 +45,7 @@ This analysis is a comparison of bulk RNAseq data from human iPSC neuronal cell 
 They were obtained from Synthego and NCRAD and feature the MAPT S305 mutation.  
 We also compare bulk RNAseq data from @bowles_development_2024, which used the same NCRAD lines.
 
-```{r}
+```{r, message = FALSE, warning = FALSE, results = "hide"}
 # Copyright (c) Emir Turkes, Eliona Tsefou, UK DRI at UCL
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,6 +79,8 @@ We also compare bulk RNAseq data from @bowles_development_2024, which used the s
 # Load packages.
 # --------------
 library(conflicted) # Ensure packages do not have namespace conflicts.
+packages <- "edgeR"
+lapply(packages, library)
 # --------------
 
 # Adds download buttons and horizontal scrolling to DT::datatable.
@@ -100,6 +102,33 @@ datatable_download <- function(dt) {
   )
 }
 # ----------------------------------------------------------------
+
+# Same as datatable_download but converts numbers to exponential values.
+# ----------------------------------------------------------------------
+datatable_download_exp <- function(dt) {
+  DT::datatable(
+    dt,
+    list(
+      scrollX = TRUE,
+      dom = "Blfrtip",
+      buttons = list(
+        "copy", "print",
+        list(
+          extend = "collection", buttons = c("csv", "excel", "pdf"),
+          text = "Download"
+        )
+      ),
+      rowCallback = DT::JS(
+        "function(row, data) {",
+        "for (i = 1; i < data.length; i++) {",
+        "if (data[i]>=1000 | data[i]<1000) {",
+        "$('td:eq('+i+')', row).html(data[i].toExponential(2));}}}"
+      )
+    ),
+    extensions = "Buttons"
+  )
+}
+# ----------------------------------------------------------------------
 
 # Add paths.
 # ----------
@@ -189,27 +218,108 @@ datatable_download(data$bowles[1:5, ])
 ```{r}
 # Create a list of metadata that will be used for design matrices.
 # ----------------------------------------------------------------
-design <- vector("list", length = 3)
+meta <- vector("list", length = 3)
 
 cols <- colnames(data[[1]])
-design[[1]] <- data.frame(
+meta[[1]] <- data.frame(
   sample = cols,
   timepoint = factor(sub(".*(21|28).*", "\\1", cols)),
   genotype = factor(sub("^(WT|D4).*", "\\1", cols))
 )
 cols <- colnames(data[[2]])
-design[[2]] <- data.frame(
+meta[[2]] <- data.frame(
   sample = cols,
   timepoint = factor(sub(".*_D(\\d+)$", "\\1", cols)),
   genotype = factor(sub(".*_(NNBB7|HCB8)_D\\d+$", "\\1", cols))
 )
 cols <- colnames(data[[3]])
-design[[3]] <- data.frame(
+meta[[3]] <- data.frame(
   sample = cols,
   timepoint = factor(sub(".*_(6W|8W)$", "\\1", cols)),
   genotype = factor(sub(".*_(HCB8|NWBB7)_[68]W$", "\\1", cols))
 )
 # ----------------------------------------------------------------
+
+# Run limma-trend pipeline on each dataset.
+# For now the third dataset is excluded for having too few samples.
+# -----------------------------------------------------------------
+cache <- file.path(cache_dir, "results.qs")
+if (file.exists(cache)) {
+  results <- qs::qread(cache)
+} else {
+
+  results <- vector("list", length = 2)
+  names(results) <- c("synthego", "ncrad")
+  for (i in seq_along(results)) {
+
+    dge_orig <- DGEList(data[[i]])
+    keep <- filterByExpr(dge_orig, group = meta[[i]]$genotype)
+    dge_orig <- dge_orig[keep, ]
+    dge_orig <- calcNormFactors(dge_orig)
+    dge <- DGEList(data[[i]])
+    dge$samples$norm.factors <- dge_orig$samples$norm.factors
+    keep <- filterByExpr(dge_orig, group = meta[[i]]$genotype)
+    dge <- dge[keep, , keep.lib.sizes = FALSE]
+    dge <- calcNormFactors(dge)
+    dge <- cpm(dge, log = TRUE)
+
+    group <- factor(paste(meta[[i]]$genotype, meta[[i]]$timepoint, sep = "_"))
+    design <- model.matrix(~ 0 + group)
+    colnames(design) <- levels(group)
+
+    if (i == 1) {
+      cont_mat <- makeContrasts(
+        D4_vs_WT_21 = D4_21 - WT_21,
+        D4_vs_WT_28 = D4_28 - WT_28,
+        levels = design
+      )
+    } else if (i == 2) {
+      cont_mat <- makeContrasts(
+        HCB8_vs_NNBB7_21 = HCB8_21 - NNBB7_21,
+        HCB8_vs_NNBB7_28 = HCB8_28 - NNBB7_28,
+        levels = design
+      )
+    } else if (i == 3) {
+      cont_mat <- makeContrasts(
+        HCB8_vs_NWBB7_6W = HCB8_6W - NWBB7_6W,
+        HCB8_vs_NWBB7_8W = HCB8_8W - NWBB7_8W,
+        levels = design
+      )
+    }
+
+    fit <- lmFit(dge, design)
+    fit <- contrasts.fit(fit, cont_mat)
+    fit <- suppressWarnings(eBayes(fit, trend = TRUE, robust = TRUE))
+
+    tests <- decideTests(fit)
+    tc <- textConnection("tmp", open = "w")
+    write.fit(fit, tests, file = tc, adjust = "BH")
+    close(tc)
+    results[[i]] <- read.delim(text = tmp)
+
+    rownames(results[[i]]) <- results[[i]]$X
+    results[[i]] <- results[[i]][ , 2:ncol(results[[i]])]
+    gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(results[[i]]), ]
+    gene_anno_sub <- gene_anno_sub[match(rownames(results[[i]]), gene_anno_sub$ensembl), ]
+    results[[i]]$Gene <- gene_anno_sub$symbol
+    results[[i]] <- results[[i]][ , c(ncol(results[[i]]), seq(ncol(results[[i]]) - 1))]
+    results[[i]] <- results[[i]][order(results[[i]]$F.p.value), ]
+  }
+  qs::qsave(results, file = cache)
+}
+# -----------------------------------------------------------------
+```
+
+**Full Synthego DEG Results**
+
+```{r, warning = FALSE}
+datatable_download_exp(results$synthego)
+```
+
+**Full NCRAD DEG Results**
+
+```{r, warning = FALSE}
+datatable_download_exp(results$ncrad)
 ```
 
 # References
