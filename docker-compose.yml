@@ -1,5 +1,3 @@
-version: "3"
-
 services:
   all:
     image: eturkes/s305n-clines-rnaseq:v5
