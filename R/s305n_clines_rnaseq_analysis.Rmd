@@ -129,22 +129,22 @@ if (file.exists(cache)) {
 # ---------------------------------------------------------------------
 ```
 
-**Full Synthego RNAseq Data**
+**Preview of Synthego RNAseq Data**
 
 ```{r}
-datatable_download(synthego)
+datatable_download(synthego[1:5, 1:5])
 ```
 
-**Full NCRAD RNAseq Data**
+**Preview of NCRAD RNAseq Data**
 
 ```{r}
-datatable_download(ncrad)
+datatable_download(ncrad[1:5, 1:5])
 ```
 
-**Full NCRAD RNAseq Data from @bowles_development_2024**
+**Preview of NCRAD RNAseq Data from @bowles_development_2024**
 
 ```{r}
-datatable_download(bowles)
+datatable_download(bowles[1:5, 1:5])
 ```
 
 # References
