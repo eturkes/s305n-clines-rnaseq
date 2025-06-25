@@ -9,5 +9,6 @@ RUN Rscript -e "install.packages('conflicted')" \
         -e "install.packages('DT')" \
         -e "install.packages('BiocManager')" \
         -e "BiocManager::install('edgeR')" \
+        -e "BiocManager::install('ComplexHeatmap')" \
     && rm -Rf /tmp/downloaded_packages/ \
         /tmp/*.rds

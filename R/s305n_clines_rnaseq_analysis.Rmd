@@ -79,7 +79,7 @@ We also compare bulk RNAseq data from @bowles_development_2024, which used the s
 # Load packages.
 # --------------
 library(conflicted) # Ensure packages do not have namespace conflicts.
-packages <- "edgeR"
+packages <- c("edgeR", "ComplexHeatmap")
 lapply(packages, library)
 # --------------
 
@@ -252,7 +252,7 @@ if (file.exists(cache)) {
 
   results <- vector("list", length = 2)
   names(results) <- c("synthego", "ncrad")
-  for (i in seq_along(results)) {
+  for (i in seq_along(data)) {
 
     dge <- DGEList(data[[i]])
     keep <- filterByExpr(dge, group = meta[[i]]$genotype)
@@ -289,23 +289,25 @@ if (file.exists(cache)) {
       )
     }
 
-    fit <- lmFit(data[[i]], design)
-    fit <- contrasts.fit(fit, cont_mat)
-    fit <- suppressWarnings(eBayes(fit, trend = TRUE, robust = TRUE))
+    if (i != 3) {
+      fit <- lmFit(data[[i]], design)
+      fit <- contrasts.fit(fit, cont_mat)
+      fit <- suppressWarnings(eBayes(fit, trend = TRUE, robust = TRUE))
 
-    tests <- decideTests(fit)
-    tc <- textConnection("tmp", open = "w")
-    write.fit(fit, tests, file = tc, adjust = "BH")
-    close(tc)
-    results[[i]] <- read.delim(text = tmp)
+      tests <- decideTests(fit)
+      tc <- textConnection("tmp", open = "w")
+      write.fit(fit, tests, file = tc, adjust = "BH")
+      close(tc)
+      results[[i]] <- read.delim(text = tmp)
 
-    rownames(results[[i]]) <- results[[i]]$X
-    results[[i]] <- results[[i]][ , 2:ncol(results[[i]])]
-    gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(results[[i]]), ]
-    gene_anno_sub <- gene_anno_sub[match(rownames(results[[i]]), gene_anno_sub$ensembl), ]
-    results[[i]]$Gene <- gene_anno_sub$symbol
-    results[[i]] <- results[[i]][ , c(ncol(results[[i]]), seq(ncol(results[[i]]) - 1))]
-    results[[i]] <- results[[i]][order(results[[i]]$F.p.value), ]
+      rownames(results[[i]]) <- results[[i]]$X
+      results[[i]] <- results[[i]][ , 2:ncol(results[[i]])]
+      gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(results[[i]]), ]
+      gene_anno_sub <- gene_anno_sub[match(rownames(results[[i]]), gene_anno_sub$ensembl), ]
+      results[[i]]$Gene <- gene_anno_sub$symbol
+      results[[i]] <- results[[i]][ , c(ncol(results[[i]]), seq(ncol(results[[i]]) - 1))]
+      results[[i]] <- results[[i]][order(results[[i]]$F.p.value), ]
+    }
   }
   rm(dge, fit)
   qs::qsave(results, file = cache)
@@ -324,6 +326,96 @@ datatable_download_exp(results$synthego)
 
 ```{r, warning = FALSE}
 datatable_download_exp(results$ncrad)
+```
+
+# Visualisation
+
+## D21
+
+```{r}
+timepoint <- "21"
+
+features <- c()
+for (i in seq_along(results)) {
+  tmp <- results[[i]]
+  tmp <- tmp[ , grepl("P.value.adj", colnames(tmp)), drop = FALSE]
+  tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
+  features <- c(features, rownames(tmp[tmp[ , 1] < 0.05, , drop = FALSE]))
+}
+features <- unique(features)
+
+for (i in seq_along(data)) {
+  tmp <- data[[i]][rownames(data[[i]]) %in% features, ]
+  if (i != 3) {
+    tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
+  } else {
+    if (timepoint == "21") {
+      tmp <- tmp[ , grepl("6W", colnames(tmp)), drop = FALSE]
+    } else {
+      tmp <- tmp[ , grepl("8W", colnames(tmp)), drop = FALSE]
+    }
+  }
+
+  if (i == 1) {
+    mat <- tmp
+  } else {
+    tmp <- tmp[match(rownames(mat), rownames(tmp)), ]
+    mat <- cbind(mat, tmp)
+  }
+}
+mat <- mat[complete.cases(mat), ]
+
+gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
+gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]
+rownames(mat) <- gene_anno_sub$symbols
+
+mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
+
+Heatmap(mat, cluster_columns = FALSE)
+```
+
+## D28
+
+```{r}
+timepoint <- "28"
+
+features <- c()
+for (i in seq_along(results)) {
+  tmp <- results[[i]]
+  tmp <- tmp[ , grepl("P.value.adj", colnames(tmp)), drop = FALSE]
+  tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
+  features <- c(features, rownames(tmp[tmp[ , 1] < 0.05, , drop = FALSE]))
+}
+features <- unique(features)
+
+for (i in seq_along(data)) {
+  tmp <- data[[i]][rownames(data[[i]]) %in% features, ]
+  if (i != 3) {
+    tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
+  } else {
+    if (timepoint == "21") {
+      tmp <- tmp[ , grepl("6W", colnames(tmp)), drop = FALSE]
+    } else {
+      tmp <- tmp[ , grepl("8W", colnames(tmp)), drop = FALSE]
+    }
+  }
+
+  if (i == 1) {
+    mat <- tmp
+  } else {
+    tmp <- tmp[match(rownames(mat), rownames(tmp)), ]
+    mat <- cbind(mat, tmp)
+  }
+}
+mat <- mat[complete.cases(mat), ]
+
+gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
+gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]
+rownames(mat) <- gene_anno_sub$symbols
+
+mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
+
+Heatmap(mat, cluster_columns = FALSE)
 ```
 
 # References
