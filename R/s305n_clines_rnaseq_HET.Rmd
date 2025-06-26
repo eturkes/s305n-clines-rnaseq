@@ -171,7 +171,7 @@ for (i in 1:2) {
 # We collapse these duplicates to the mean of each set per sample.
 # Since this process is somewhat slow, we cache the cleaned object.
 # ---------------------------------------------------------------------
-cache <- file.path(cache_dir, "bowles.qs")
+cache <- file.path(cache_dir, "..", "bowles.qs")
 if (file.exists(cache)) {
   data[[3]] <- qs::qread(cache)
 } else {
