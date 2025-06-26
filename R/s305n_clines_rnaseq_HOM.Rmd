@@ -396,6 +396,8 @@ cat(gene_anno[gene_anno$ensembl %in% features[[1]], ]$symbols)
 cat(gene_anno[gene_anno$ensembl %in% features[[2]], ]$symbols)
 ```
 
+**Heatmap**
+
 ```{r, fig.width = 7, fig.height = 10}
 for (i in seq_along(data)) {
   tmp <- data[[i]]
@@ -486,6 +488,8 @@ draw(
   merge_legend = TRUE
 )
 ```
+
+**PCA Plots**
 
 ```{r, warning = FALSE}
 pca <- prcomp(t(mat_full))
@@ -576,6 +580,8 @@ cat(gene_anno[gene_anno$ensembl %in% features[[1]], ]$symbols)
 cat(gene_anno[gene_anno$ensembl %in% features[[2]], ]$symbols)
 ```
 
+**Heatmap**
+
 ```{r, fig.width = 7, fig.height = 10}
 for (i in seq_along(data)) {
   tmp <- data[[i]]
@@ -666,6 +672,8 @@ draw(
   merge_legend = TRUE
 )
 ```
+
+**PCA Plots**
 
 ```{r, warning = FALSE}
 pca <- prcomp(t(mat_full))
