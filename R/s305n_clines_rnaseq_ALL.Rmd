@@ -382,7 +382,7 @@ names(colour2) <- levels(meta_comb$genotype)
 
 ## D21 (6W in Bowles Data) WT vs. S305N
 
-```{r, fig.width = 7, fig.height = 10}
+```{r}
 timepoint <- "21"
 
 features <- vector("list", length = 3)
@@ -396,7 +396,27 @@ for (i in seq_along(results)) {
   features[[i]] <- c(features[[i]], rownames(tmp[tmp[ , 1] < 0, , drop = FALSE]))
 }
 features[[3]] <- intersect(features[[1]], features[[2]])
+```
 
+**DEG in Both Cell Lines**
+
+```{r}
+cat(gene_anno[gene_anno$ensembl %in% features[[3]], ]$symbols)
+```
+
+**DEG in Synthego Only**
+
+```{r}
+cat(gene_anno[gene_anno$ensembl %in% features[[1]], ]$symbols)
+```
+
+**DEG in NCRAD Only**
+
+```{r}
+cat(gene_anno[gene_anno$ensembl %in% features[[2]], ]$symbols)
+```
+
+```{r, fig.width = 7, fig.height = 10}
 for (i in seq_along(data)) {
   tmp <- data[[i]]
   if (i != 3) {
@@ -542,7 +562,7 @@ ggplot(df, aes(PC1, PC2, color = Dataset)) +
 
 ## D28 (8W in Bowles Data) WT vs. S305N
 
-```{r, fig.width = 7, fig.height = 10}
+```{r}
 timepoint <- "28"
 
 features <- vector("list", length = 3)
@@ -556,7 +576,27 @@ for (i in seq_along(results)) {
   features[[i]] <- c(features[[i]], rownames(tmp[tmp[ , 1] < 0, , drop = FALSE]))
 }
 features[[3]] <- intersect(features[[1]], features[[2]])
+```
 
+**DEG in Both Cell Lines**
+
+```{r}
+cat(gene_anno[gene_anno$ensembl %in% features[[3]], ]$symbols)
+```
+
+**DEG in Synthego Only**
+
+```{r}
+cat(gene_anno[gene_anno$ensembl %in% features[[1]], ]$symbols)
+```
+
+**DEG in NCRAD Only**
+
+```{r}
+cat(gene_anno[gene_anno$ensembl %in% features[[2]], ]$symbols)
+```
+
+```{r, fig.width = 7, fig.height = 10}
 for (i in seq_along(data)) {
   tmp <- data[[i]]
   if (i != 3) {
