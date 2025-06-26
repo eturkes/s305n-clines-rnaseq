@@ -79,13 +79,13 @@ We also compare bulk RNAseq data from @bowles_development_2024, which used the s
 # Load packages.
 # --------------
 library(conflicted) # Ensure packages do not have namespace conflicts.
-packages <- c("edgeR", "ComplexHeatmap")
+packages <- c("edgeR", "ComplexHeatmap", "ggplot2")
 lapply(packages, library)
 # --------------
 
 # Define global settings.
 # -----------------------
-knitr::opts_chunk$set(fig.width = 7, fig.height = 10, dpi = 96)
+knitr::opts_chunk$set(fig.width = 7, fig.height = 5, dpi = 96)
 # -----------------------
 
 # Adds download buttons and horizontal scrolling to DT::datatable.
@@ -365,7 +365,7 @@ names(colour2) <- levels(meta_comb$group)
 
 ## D21 (6W in Bowles Data) WT vs. HOM S305N
 
-```{r}
+```{r, fig.width = 7, fig.height = 10}
 timepoint <- "21"
 
 features <- vector("list", length = 3)
@@ -381,7 +381,7 @@ for (i in seq_along(results)) {
 features[[3]] <- intersect(features[[1]], features[[2]])
 
 for (i in seq_along(data)) {
-  tmp <- data[[i]][rownames(data[[i]]) %in% unlist(features), ]
+  tmp <- data[[i]]
   if (i != 3) {
     tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
   } else {
@@ -395,11 +395,19 @@ for (i in seq_along(data)) {
   if (i == 1) {
     mat <- tmp
   } else {
+    intersect <- intersect(rownames(mat), rownames(tmp))
+    mat <- mat[rownames(mat) %in% intersect, ]
+    tmp <- tmp[rownames(tmp) %in% intersect, ]
+
     tmp <- tmp[match(rownames(mat), rownames(tmp)), ]
     mat <- cbind(mat, tmp)
   }
 }
 
+mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
+mat_full <- mat
+
+mat <- mat[rownames(mat) %in% unlist(features), ]
 mat <- mat[match(unlist(features), rownames(mat)), ]
 mat <- mat[complete.cases(mat), ]
 features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
@@ -407,8 +415,6 @@ features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
 gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]
 rownames(mat) <- gene_anno_sub$symbols
-
-mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
 
 meta_comb_sub <- meta_comb[meta_comb$sample %in% colnames(mat), ]
 meta_comb_sub <- meta_comb_sub[match(colnames(mat), meta_comb_sub$sample), ]
@@ -464,9 +470,35 @@ draw(
 )
 ```
 
+```{r, warning = FALSE}
+pca <- prcomp(t(mat_full))
+df <- as.data.frame(predict(pca)[ , 1:2])
+df$Dataset <- meta_comb_sub$dataset
+df$Genotype <- meta_comb_sub$group
+summary <- summary(pca)$importance
+
+ggplot(df, aes(PC1, PC2, color = Dataset)) +
+  geom_point(aes(shape = Genotype), size = 2, stroke = 1) +
+  theme_bw() +
+  labs(
+    x = paste0(
+      "PC1: ", round(summary[2, 1] * 100, digits = 1),
+      "% of Variance Explained"
+    ),
+    y = paste0(
+      "PC2: ", round(summary[2, 2] * 100, digits = 1),
+      "% of Variance Explained"
+    )
+  ) +
+  scale_shape_manual(values = seq_along(df$Genotype)) +
+  scale_fill_manual(values = colour1) +
+  scale_colour_manual(values = colour1) +
+  theme(axis.title = element_text(size = 12))
+```
+
 ## D28 (8W in Bowles Data) WT vs. HOM S305N
 
-```{r}
+```{r, fig.width = 7, fig.height = 10}
 timepoint <- "28"
 
 features <- vector("list", length = 3)
@@ -482,7 +514,7 @@ for (i in seq_along(results)) {
 features[[3]] <- intersect(features[[1]], features[[2]])
 
 for (i in seq_along(data)) {
-  tmp <- data[[i]][rownames(data[[i]]) %in% unlist(features), ]
+  tmp <- data[[i]]
   if (i != 3) {
     tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
   } else {
@@ -496,11 +528,19 @@ for (i in seq_along(data)) {
   if (i == 1) {
     mat <- tmp
   } else {
+    intersect <- intersect(rownames(mat), rownames(tmp))
+    mat <- mat[rownames(mat) %in% intersect, ]
+    tmp <- tmp[rownames(tmp) %in% intersect, ]
+
     tmp <- tmp[match(rownames(mat), rownames(tmp)), ]
     mat <- cbind(mat, tmp)
   }
 }
 
+mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
+mat_full <- mat
+
+mat <- mat[rownames(mat) %in% unlist(features), ]
 mat <- mat[match(unlist(features), rownames(mat)), ]
 mat <- mat[complete.cases(mat), ]
 features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
@@ -508,8 +548,6 @@ features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
 gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]
 rownames(mat) <- gene_anno_sub$symbols
-
-mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
 
 meta_comb_sub <- meta_comb[meta_comb$sample %in% colnames(mat), ]
 meta_comb_sub <- meta_comb_sub[match(colnames(mat), meta_comb_sub$sample), ]
@@ -563,6 +601,32 @@ draw(
   heatmap_legend_side = "right",
   merge_legend = TRUE
 )
+```
+
+```{r, warning = FALSE}
+pca <- prcomp(t(mat_full))
+df <- as.data.frame(predict(pca)[ , 1:2])
+df$Dataset <- meta_comb_sub$dataset
+df$Genotype <- meta_comb_sub$group
+summary <- summary(pca)$importance
+
+ggplot(df, aes(PC1, PC2, color = Dataset)) +
+  geom_point(aes(shape = Genotype), size = 2, stroke = 1) +
+  theme_bw() +
+  labs(
+    x = paste0(
+      "PC1: ", round(summary[2, 1] * 100, digits = 1),
+      "% of Variance Explained"
+    ),
+    y = paste0(
+      "PC2: ", round(summary[2, 2] * 100, digits = 1),
+      "% of Variance Explained"
+    )
+  ) +
+  scale_shape_manual(values = seq_along(df$Genotype)) +
+  scale_fill_manual(values = colour1) +
+  scale_colour_manual(values = colour1) +
+  theme(axis.title = element_text(size = 12))
 ```
 
 # References
