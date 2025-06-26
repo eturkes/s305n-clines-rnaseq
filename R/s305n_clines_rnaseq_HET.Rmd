@@ -1,0 +1,651 @@
+---
+title: "S305N Cell Lines RNAseq HET Analysis"
+author:
+  - name: "Emir Turkes and Eliona Tsefou, UK DRI at UCL"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+bibliography: "../s305n-clines-rnaseq.bib"
+biblio-style: apalike
+link-citations: true
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    theme: lumen
+    highlight: haddock
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(
+    inputFile, encoding = encoding,
+    output_file = file.path("..", "results", "s305n_clines_rnaseq_HET.html")
+  )})
+---
+
+<style type="text/css">
+body {font-size: 16px;}
+h1.title {font-size: 35px;}
+h1 {font-size: 24px;}
+h2 {font-size: 22px;}
+.toc-content {padding-left: 0px; padding-right: 0px;}
+div.tocify {width: 100%;}
+.tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 25px; text-indent: 0;}
+div.main-container {max-width: none; width: 100%;}
+</style>
+
+*This file is a part of [s305n-clines-rnaseq](https://github.com/eturkes/s305n-clines-rnaseq).*
+
+The table of contents in the top left is clickable and can be used to quickly navigate the document.  
+To toggle the visibility of code, use the `CODE` toggles at the top right of chunks.  
+The toggle at the start of the document controls the visibility of all chunks.  
+
+This analysis is a comparison of bulk RNAseq data from human iPSC neuronal cell lines  
+They were obtained from Synthego and NCRAD and feature the MAPT S305 mutation.  
+We also compare bulk RNAseq data from @bowles_development_2024, which used the same NCRAD lines.
+
+```{r, message = FALSE, warning = FALSE, results = "hide"}
+# Copyright (c) Emir Turkes, Eliona Tsefou, UK DRI at UCL
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# ---- LLVM Exceptions to the Apache 2.0 License ----
+#
+# As an exception, if, as a result of your compiling your source code, portions
+# of this Software are embedded into an Object form of such source code, you
+# may redistribute such embedded portions in such Object form without complying
+# with the conditions of Sections 4(a), 4(b) and 4(d) of the License.
+#
+# In addition, if you combine or link compiled forms of this Software with
+# software that is licensed under the GPLv2 ("Combined Software") and if a
+# court of competent jurisdiction determines that the patent provision (Section
+# 3), the indemnity provision (Section 9) or other Section of the License
+# conflicts with the conditions of the GPLv2, you may retroactively and
+# prospectively choose to deem waived or otherwise exclude such Section(s) of
+# the License, but only in their entirety and only with respect to the Combined
+# Software.
+
+# Load packages.
+# --------------
+library(conflicted) # Ensure packages do not have namespace conflicts.
+packages <- c("edgeR", "ComplexHeatmap", "ggplot2")
+lapply(packages, library)
+# --------------
+
+# Define global settings.
+# -----------------------
+knitr::opts_chunk$set(fig.width = 7, fig.height = 5, dpi = 96)
+# -----------------------
+
+# Adds download buttons and horizontal scrolling to DT::datatable.
+# ----------------------------------------------------------------
+datatable_download <- function(dt) {
+  DT::datatable(
+    dt,
+    list(
+      scrollX = TRUE, dom = "Blfrtip",
+      buttons = list(
+        "copy", "print",
+        list(
+          extend = "collection", buttons = c("csv", "excel", "pdf"),
+          text = "Download"
+        )
+      )
+    ),
+    extensions = "Buttons"
+  )
+}
+# ----------------------------------------------------------------
+
+# Same as datatable_download but converts numbers to exponential values.
+# ----------------------------------------------------------------------
+datatable_download_exp <- function(dt) {
+  DT::datatable(
+    dt,
+    list(
+      scrollX = TRUE,
+      dom = "Blfrtip",
+      buttons = list(
+        "copy", "print",
+        list(
+          extend = "collection", buttons = c("csv", "excel", "pdf"),
+          text = "Download"
+        )
+      ),
+      rowCallback = DT::JS(
+        "function(row, data) {",
+        "for (i = 1; i < data.length; i++) {",
+        "if (data[i]>=1000 | data[i]<1000) {",
+        "$('td:eq('+i+')', row).html(data[i].toExponential(2));}}}"
+      )
+    ),
+    extensions = "Buttons"
+  )
+}
+# ----------------------------------------------------------------------
+
+`%notin%` <- Negate(`%in%`) # Create the %notin% operator.
+
+# Add paths.
+# ----------
+data_dir <- file.path("..", "data")
+cache_dir <- file.path("..", "cache", "HET")
+if (!dir.exists(cache_dir)) {
+  dir.create(cache_dir, recursive = TRUE)
+}
+# ----------
+```
+
+# Prep Data
+
+```{r}
+data <- vector("list", length = 3)
+
+data[[1]] <- read.delim(file.path(data_dir, "Final counts_RNAseq_Synthego.txt"), row.names = 1)
+data[[2]] <- read.delim(file.path(data_dir, "gene_count_NCRAD.txt"), row.names = 1)
+
+# Data uses ENSEMBL IDs by default but includes gene symbols.
+# Use one of the datasets to create a conversion table.
+# Then strip extra information from the datasets that are not counts.
+# -------------------------------------------------------------------
+gene_anno <- data.frame(
+  ensembl = rownames(data[[1]]), symbols = data[[1]]$gene_name
+)
+for (i in 1:2) {
+  data[[i]] <- data[[i]][ , seq(which(colnames(data[[i]]) == "gene_name") - 1)]
+}
+# -------------------------------------------------------------------
+
+# When stripping bowles data to plain ENSEMBL IDs there are duplicates.
+# We collapse these duplicates to the mean of each set per sample.
+# Since this process is somewhat slow, we cache the cleaned object.
+# ---------------------------------------------------------------------
+cache <- file.path(cache_dir, "bowles.qs")
+if (file.exists(cache)) {
+  data[[3]] <- qs::qread(cache)
+} else {
+  data[[3]] <- read.delim(file.path(data_dir, "GSE260517_star_gene.txt"))
+  data[[3]]$gid <- sub("\\..*", "", data[[3]]$gid)
+  data[[3]] <- aggregate(. ~ gid, data = data[[3]], FUN = mean)
+  rownames(data[[3]]) <- data[[3]]$gid
+  data[[3]]$gid <- NULL
+  qs::qsave(data[[3]], file = cache)
+}
+# ---------------------------------------------------------------------
+
+# Subset datasets to samples of interest.
+# ---------------------------------------
+match <- paste(
+  c(
+    "WT21", "WT28", "D421", "D428",
+    "NNBB7_D21", "NNBB7_D28", "30012_D21", "30012_D28",
+    "NWBB7_6W", "NWBB7_8W", "NW1B10_6W", "NW1B10_8W"
+  ),
+  collapse = "|"
+)
+data <- lapply(
+  data, function(mat) mat[, grepl(match, colnames(mat)), drop = FALSE]
+)
+# ---------------------------------------
+
+names(data) <- c("synthego", "ncrad", "bowles")
+
+colnames(data[[2]]) <- sub("30012", "a30012", colnames(data[[2]])) # Fix names.
+```
+
+**Preview of Synthego RNAseq Data**
+
+```{r}
+datatable_download(data$synthego[1:5, ])
+```
+
+**Preview of NCRAD RNAseq Data**
+
+```{r}
+datatable_download(data$ncrad[1:5, ])
+```
+
+**Preview of NCRAD RNAseq Data from @bowles_development_2024**
+
+```{r}
+datatable_download(data$bowles[1:5, ])
+```
+
+# Differential Expression
+
+```{r}
+# Create a list of metadata that will be used for design matrices.
+# ----------------------------------------------------------------
+meta <- vector("list", length = 3)
+
+cols <- colnames(data[[1]])
+meta[[1]] <- data.frame(
+  sample = cols,
+  timepoint = factor(sub(".*(21|28).*", "\\1", cols)),
+  genotype = factor(sub("^(WT|D4).*", "\\1", cols)),
+  dataset = rep("Synthego", times = length(cols)),
+  group = ifelse(sub("^(WT|D4).*", "\\1", cols) == "WT", yes = "WT", no = "S305N")
+)
+cols <- colnames(data[[2]])
+meta[[2]] <- data.frame(
+  sample = cols,
+  timepoint = factor(sub(".*_D(\\d+)$", "\\1", cols)),
+  genotype = factor(sub(".*_(NNBB7|a30012)_D\\d+$", "\\1", cols)),
+  dataset = rep("NCRAD", times = length(cols)),
+  group = ifelse(sub(".*_(NNBB7|a30012)_D\\d+$", "\\1", cols) == "NNBB7", yes = "WT", no = "S305N")
+)
+cols <- colnames(data[[3]])
+meta[[3]] <- data.frame(
+  sample = cols,
+  timepoint = factor(sub(".*_(6W|8W)$", "\\1", cols)),
+  genotype = factor(sub(".*_(NW1B10|NWBB7)_[68]W$", "\\1", cols)),
+  dataset = rep("Bowles NCRAD", times = length(cols)),
+  group = ifelse(sub(".*_(NW1B10|NWBB7)_[68]W$", "\\1", cols) == "NWBB7", yes = "WT", no = "S305N")
+)
+
+meta_comb <- do.call(rbind, meta)
+meta_comb$dataset <- factor(meta_comb$dataset, levels = c("Synthego", "NCRAD", "Bowles NCRAD"))
+meta_comb$group <- factor(meta_comb$group, levels = c("WT", "S305N"))
+# ----------------------------------------------------------------
+
+# Run limma-trend pipeline on each dataset.
+# For now the third dataset is excluded for having too few samples.
+# -----------------------------------------------------------------
+cache <- file.path(cache_dir, "results.qs")
+cache2 <- file.path(cache_dir, "data.qs")
+if (file.exists(cache)) {
+  results <- qs::qread(cache)
+  data <- qs::qread(cache2)
+} else {
+
+  results <- vector("list", length = 2)
+  names(results) <- c("synthego", "ncrad")
+  for (i in seq_along(data)) {
+
+    dge <- DGEList(data[[i]])
+    keep <- filterByExpr(dge, group = meta[[i]]$genotype)
+    dge <- dge[keep, ]
+    dge <- calcNormFactors(dge)
+    data[[i]] <- DGEList(data[[i]])
+    data[[i]]$samples$norm.factors <- dge$samples$norm.factors
+    keep <- filterByExpr(data[[i]], group = meta[[i]]$genotype)
+    data[[i]] <- data[[i]][keep, , keep.lib.sizes = FALSE]
+    data[[i]] <- calcNormFactors(data[[i]])
+    data[[i]] <- cpm(data[[i]], log = TRUE)
+
+    group <- factor(paste(meta[[i]]$genotype, meta[[i]]$timepoint, sep = "_"))
+    design <- model.matrix(~ 0 + group)
+    colnames(design) <- levels(group)
+
+    if (i == 1) {
+      cont_mat <- makeContrasts(
+        D4_vs_WT_21 = D4_21 - WT_21,
+        D4_vs_WT_28 = D4_28 - WT_28,
+        levels = design
+      )
+    } else if (i == 2) {
+      cont_mat <- makeContrasts(
+        a30012_vs_NNBB7_21 = a30012_21 - NNBB7_21,
+        a30012_vs_NNBB7_28 = a30012_28 - NNBB7_28,
+        levels = design
+      )
+    } else if (i == 3) {
+      cont_mat <- makeContrasts(
+        NW1B10_vs_NWBB7_6W = NW1B10_6W - NWBB7_6W,
+        NW1B10_vs_NWBB7_8W = NW1B10_8W - NWBB7_8W,
+        levels = design
+      )
+    }
+
+    if (i != 3) {
+      fit <- lmFit(data[[i]], design)
+      fit <- contrasts.fit(fit, cont_mat)
+      fit <- suppressWarnings(eBayes(fit, trend = TRUE, robust = TRUE))
+
+      tests <- decideTests(fit)
+      tc <- textConnection("tmp", open = "w")
+      write.fit(fit, tests, file = tc, adjust = "BH")
+      close(tc)
+      results[[i]] <- read.delim(text = tmp)
+
+      rownames(results[[i]]) <- results[[i]]$X
+      results[[i]] <- results[[i]][ , 2:ncol(results[[i]])]
+      gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(results[[i]]), ]
+      gene_anno_sub <- gene_anno_sub[match(rownames(results[[i]]), gene_anno_sub$ensembl), ]
+      results[[i]]$Gene <- gene_anno_sub$symbol
+      results[[i]] <- results[[i]][ , c(ncol(results[[i]]), seq(ncol(results[[i]]) - 1))]
+      results[[i]] <- results[[i]][order(results[[i]]$F.p.value), ]
+    }
+  }
+  rm(dge, fit)
+  qs::qsave(results, file = cache)
+  qs::qsave(data, file = cache2)
+}
+# -----------------------------------------------------------------
+```
+
+**Full Synthego DEG Results**
+
+```{r, warning = FALSE}
+datatable_download_exp(results$synthego)
+```
+
+**Full NCRAD DEG Results**
+
+```{r, warning = FALSE}
+datatable_download_exp(results$ncrad)
+```
+
+# Visualisation
+
+```{r}
+row_anno <- rowAnnotation(
+  DEGs = anno_block(
+    labels = c("DEG Both", "DEG\nSynthego", "DEG\nNCRAD"),
+    labels_gp = gpar(fontsize = 10),
+    labels_rot = 0
+  ),
+  width = unit(1.75, "cm")
+)
+
+colour <- scales::hue_pal()(7)
+colour1 <- colour[c(1, 3, 5)]
+colour2 <- c("lightgray", "darkgray")
+names(colour1) <- levels(meta_comb$dataset)
+names(colour2) <- levels(meta_comb$group)
+```
+
+## D21 (6W in Bowles Data) WT vs. HET S305N
+
+```{r, fig.width = 7, fig.height = 50}
+timepoint <- "21"
+
+features <- vector("list", length = 3)
+for (i in seq_along(results)) {
+  tmp <- results[[i]]
+  tmp <- tmp[ , grepl("P.value.adj|Coef", colnames(tmp)), drop = FALSE]
+  tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
+  tmp <- tmp[tmp[ , 2] < 0.05, , drop = FALSE]
+  tmp <- tmp[order(tmp[ , 2]), , drop = FALSE]
+  features[[i]] <- rownames(tmp[tmp[ , 1] > 0, , drop = FALSE])
+  features[[i]] <- c(features[[i]], rownames(tmp[tmp[ , 1] < 0, , drop = FALSE]))
+}
+
+features[[3]] <- intersect(features[[1]], features[[2]])
+for (i in 1:2) {
+  features[[i]] <- features[[i]][features[[i]] %notin% features[[3]]]
+}
+
+for (i in seq_along(data)) {
+  tmp <- data[[i]]
+  if (i != 3) {
+    tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
+  } else {
+    if (timepoint == "21") {
+      tmp <- tmp[ , grepl("6W", colnames(tmp)), drop = FALSE]
+    } else {
+      tmp <- tmp[ , grepl("8W", colnames(tmp)), drop = FALSE]
+    }
+  }
+
+  if (i == 1) {
+    mat <- tmp
+  } else {
+    intersect <- intersect(rownames(mat), rownames(tmp))
+    mat <- mat[rownames(mat) %in% intersect, ]
+    tmp <- tmp[rownames(tmp) %in% intersect, ]
+
+    tmp <- tmp[match(rownames(mat), rownames(tmp)), ]
+    mat <- cbind(mat, tmp)
+  }
+}
+
+mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
+mat_full <- mat
+
+mat <- mat[rownames(mat) %in% unlist(features), ]
+mat <- mat[match(unlist(features), rownames(mat)), ]
+mat <- mat[complete.cases(mat), ]
+features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
+
+gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
+gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]
+rownames(mat) <- gene_anno_sub$symbols
+
+meta_comb_sub <- meta_comb[meta_comb$sample %in% colnames(mat), ]
+meta_comb_sub <- meta_comb_sub[match(colnames(mat), meta_comb_sub$sample), ]
+
+top_anno <- HeatmapAnnotation(
+  Dataset = meta_comb_sub$dataset,
+  Genotype = meta_comb_sub$group,
+  col = list(
+    Dataset = colour1,
+    Genotype = colour2
+  ),
+  annotation_name_side = "right",
+  annotation_name_gp = gpar(fontsize = 10),
+  annotation_legend_param = list(
+    Dataset = list(
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    ),
+    Genotype = list(
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    )
+  )
+)
+
+draw(
+  Heatmap(
+    mat,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = factor(
+      c(
+        rep("DEG in Both Lines", times = length(features[[3]])),
+        rep("DEG in Synthego Only", times = length(features[[1]])),
+        rep("DEG in NCRAD Only", times = length(features[[2]]))
+      ),
+      levels = c("DEG in Both Lines", "DEG in Synthego Only", "DEG in NCRAD Only")
+    ),
+    column_split = meta_comb_sub$dataset,
+    left_annotation = row_anno,
+    top_annotation = top_anno,
+    row_title = NULL,
+    row_names_gp = gpar(fontsize = 8),
+    column_title_gp = gpar(fontsize = 10, fontface = "bold"),
+    show_column_names = FALSE,
+    heatmap_legend_param = list(
+      title = "Scaled Log2CPM",
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    )
+  ),
+  heatmap_legend_side = "right",
+  merge_legend = TRUE
+)
+```
+
+```{r, warning = FALSE}
+pca <- prcomp(t(mat_full))
+df <- as.data.frame(predict(pca)[ , 1:2])
+df$Dataset <- meta_comb_sub$dataset
+df$Genotype <- meta_comb_sub$group
+summary <- summary(pca)$importance
+
+ggplot(df, aes(PC1, PC2, color = Dataset)) +
+  geom_point(aes(shape = Genotype), size = 2, stroke = 1) +
+  theme_bw() +
+  labs(
+    x = paste0(
+      "PC1: ", round(summary[2, 1] * 100, digits = 1),
+      "% of Variance Explained"
+    ),
+    y = paste0(
+      "PC2: ", round(summary[2, 2] * 100, digits = 1),
+      "% of Variance Explained"
+    )
+  ) +
+  scale_shape_manual(values = seq_along(df$Genotype)) +
+  scale_fill_manual(values = colour1) +
+  scale_colour_manual(values = colour1) +
+  theme(axis.title = element_text(size = 12))
+```
+
+## D28 (8W in Bowles Data) WT vs. HET S305N
+
+```{r, fig.width = 7, fig.height = 60}
+timepoint <- "28"
+
+features <- vector("list", length = 3)
+for (i in seq_along(results)) {
+  tmp <- results[[i]]
+  tmp <- tmp[ , grepl("P.value.adj|Coef", colnames(tmp)), drop = FALSE]
+  tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
+  tmp <- tmp[tmp[ , 2] < 0.05, , drop = FALSE]
+  tmp <- tmp[order(tmp[ , 2]), , drop = FALSE]
+  features[[i]] <- rownames(tmp[tmp[ , 1] > 0, , drop = FALSE])
+  features[[i]] <- c(features[[i]], rownames(tmp[tmp[ , 1] < 0, , drop = FALSE]))
+}
+
+features[[3]] <- intersect(features[[1]], features[[2]])
+for (i in 1:2) {
+  features[[i]] <- features[[i]][features[[i]] %notin% features[[3]]]
+}
+
+for (i in seq_along(data)) {
+  tmp <- data[[i]]
+  if (i != 3) {
+    tmp <- tmp[ , grepl(timepoint, colnames(tmp)), drop = FALSE]
+  } else {
+    if (timepoint == "21") {
+      tmp <- tmp[ , grepl("6W", colnames(tmp)), drop = FALSE]
+    } else {
+      tmp <- tmp[ , grepl("8W", colnames(tmp)), drop = FALSE]
+    }
+  }
+
+  if (i == 1) {
+    mat <- tmp
+  } else {
+    intersect <- intersect(rownames(mat), rownames(tmp))
+    mat <- mat[rownames(mat) %in% intersect, ]
+    tmp <- tmp[rownames(tmp) %in% intersect, ]
+
+    tmp <- tmp[match(rownames(mat), rownames(tmp)), ]
+    mat <- cbind(mat, tmp)
+  }
+}
+
+mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
+mat_full <- mat
+
+mat <- mat[rownames(mat) %in% unlist(features), ]
+mat <- mat[match(unlist(features), rownames(mat)), ]
+mat <- mat[complete.cases(mat), ]
+features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
+
+gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
+gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]
+rownames(mat) <- gene_anno_sub$symbols
+
+meta_comb_sub <- meta_comb[meta_comb$sample %in% colnames(mat), ]
+meta_comb_sub <- meta_comb_sub[match(colnames(mat), meta_comb_sub$sample), ]
+
+top_anno <- HeatmapAnnotation(
+  Dataset = meta_comb_sub$dataset,
+  Genotype = meta_comb_sub$group,
+  col = list(
+    Dataset = colour1,
+    Genotype = colour2
+  ),
+  annotation_name_side = "right",
+  annotation_name_gp = gpar(fontsize = 10),
+  annotation_legend_param = list(
+    Dataset = list(
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    ),
+    Genotype = list(
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    )
+  )
+)
+
+draw(
+  Heatmap(
+    mat,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = factor(
+      c(
+        rep("DEG in Both Lines", times = length(features[[3]])),
+        rep("DEG in Synthego Only", times = length(features[[1]])),
+        rep("DEG in NCRAD Only", times = length(features[[2]]))
+      ),
+      levels = c("DEG in Both Lines", "DEG in Synthego Only", "DEG in NCRAD Only")
+    ),
+    column_split = meta_comb_sub$dataset,
+    left_annotation = row_anno,
+    top_annotation = top_anno,
+    row_title = NULL,
+    row_names_gp = gpar(fontsize = 8),
+    column_title_gp = gpar(fontsize = 10, fontface = "bold"),
+    show_column_names = FALSE,
+    heatmap_legend_param = list(
+      title = "Scaled Log2CPM",
+      title_gp = gpar(fontsize = 8, fontface = "bold"),
+      labels_gp = gpar(fontsize = 8)
+    )
+  ),
+  heatmap_legend_side = "right",
+  merge_legend = TRUE
+)
+```
+
+```{r, warning = FALSE}
+pca <- prcomp(t(mat_full))
+df <- as.data.frame(predict(pca)[ , 1:2])
+df$Dataset <- meta_comb_sub$dataset
+df$Genotype <- meta_comb_sub$group
+summary <- summary(pca)$importance
+
+ggplot(df, aes(PC1, PC2, color = Dataset)) +
+  geom_point(aes(shape = Genotype), size = 2, stroke = 1) +
+  theme_bw() +
+  labs(
+    x = paste0(
+      "PC1: ", round(summary[2, 1] * 100, digits = 1),
+      "% of Variance Explained"
+    ),
+    y = paste0(
+      "PC2: ", round(summary[2, 2] * 100, digits = 1),
+      "% of Variance Explained"
+    )
+  ) +
+  scale_shape_manual(values = seq_along(df$Genotype)) +
+  scale_fill_manual(values = colour1) +
+  scale_colour_manual(values = colour1) +
+  theme(axis.title = element_text(size = 12))
+```
+
+# References
+
+This is the concluding section of the document, where we output the `sessionInfo`, and create a bibliography for works cited.
+
+```{r}
+sessionInfo()
+```

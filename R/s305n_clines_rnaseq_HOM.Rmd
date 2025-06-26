@@ -1,5 +1,5 @@
 ---
-title: "S305N Cell Lines RNAseq Analysis"
+title: "S305N Cell Lines RNAseq HOM Analysis"
 author:
   - name: "Emir Turkes and Eliona Tsefou, UK DRI at UCL"
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
@@ -20,7 +20,7 @@ output:
 knit: (function(inputFile, encoding) {
   rmarkdown::render(
     inputFile, encoding = encoding,
-    output_file = file.path("..", "results", "s305n_clines_rnaseq_analysis.html")
+    output_file = file.path("..", "results", "s305n_clines_rnaseq_HOM.html")
   )})
 ---
 
@@ -138,7 +138,7 @@ datatable_download_exp <- function(dt) {
 # Add paths.
 # ----------
 data_dir <- file.path("..", "data")
-cache_dir <- file.path("..", "cache")
+cache_dir <- file.path("..", "cache", "HOM")
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }
@@ -349,11 +349,8 @@ datatable_download_exp(results$ncrad)
 row_anno <- rowAnnotation(
   DEGs = anno_block(
     labels = c("DEG in Synthego Only", "DEG in NCRAD Only"),
-    labels_gp = gpar(fontsize = 10),
-    labels_rot = 90
-  ),
-  annotation_name_side = "top",
-  gap = unit(1, "mm")
+    labels_gp = gpar(fontsize = 10)
+  )
 )
 
 colour <- scales::hue_pal()(7)
