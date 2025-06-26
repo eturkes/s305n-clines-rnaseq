@@ -502,6 +502,33 @@ ggplot(df, aes(PC1, PC2, color = Dataset)) +
   scale_fill_manual(values = colour1) +
   scale_colour_manual(values = colour1) +
   theme(axis.title = element_text(size = 12))
+
+mat_full <- mat_full[, seq_len(ncol(mat_full) - 2)]
+meta_comb_sub <- meta_comb_sub[meta_comb_sub$sample %in% colnames(mat_full), ]
+
+pca <- prcomp(t(mat_full))
+df <- as.data.frame(predict(pca)[ , 1:2])
+df$Dataset <- meta_comb_sub$dataset
+df$Genotype <- meta_comb_sub$group
+summary <- summary(pca)$importance
+
+ggplot(df, aes(PC1, PC2, color = Dataset)) +
+  geom_point(aes(shape = Genotype), size = 2, stroke = 1) +
+  theme_bw() +
+  labs(
+    x = paste0(
+      "PC1: ", round(summary[2, 1] * 100, digits = 1),
+      "% of Variance Explained"
+    ),
+    y = paste0(
+      "PC2: ", round(summary[2, 2] * 100, digits = 1),
+      "% of Variance Explained"
+    )
+  ) +
+  scale_shape_manual(values = seq_along(df$Genotype)) +
+  scale_fill_manual(values = colour1) +
+  scale_colour_manual(values = colour1) +
+  theme(axis.title = element_text(size = 12))
 ```
 
 ## D28 (8W in Bowles Data) WT vs. HET S305N
@@ -617,6 +644,33 @@ draw(
 ```
 
 ```{r, warning = FALSE}
+pca <- prcomp(t(mat_full))
+df <- as.data.frame(predict(pca)[ , 1:2])
+df$Dataset <- meta_comb_sub$dataset
+df$Genotype <- meta_comb_sub$group
+summary <- summary(pca)$importance
+
+ggplot(df, aes(PC1, PC2, color = Dataset)) +
+  geom_point(aes(shape = Genotype), size = 2, stroke = 1) +
+  theme_bw() +
+  labs(
+    x = paste0(
+      "PC1: ", round(summary[2, 1] * 100, digits = 1),
+      "% of Variance Explained"
+    ),
+    y = paste0(
+      "PC2: ", round(summary[2, 2] * 100, digits = 1),
+      "% of Variance Explained"
+    )
+  ) +
+  scale_shape_manual(values = seq_along(df$Genotype)) +
+  scale_fill_manual(values = colour1) +
+  scale_colour_manual(values = colour1) +
+  theme(axis.title = element_text(size = 12))
+
+mat_full <- mat_full[, seq_len(ncol(mat_full) - 2)]
+meta_comb_sub <- meta_comb_sub[meta_comb_sub$sample %in% colnames(mat_full), ]
+
 pca <- prcomp(t(mat_full))
 df <- as.data.frame(predict(pca)[ , 1:2])
 df$Dataset <- meta_comb_sub$dataset
