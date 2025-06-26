@@ -150,8 +150,8 @@ if (!dir.exists(cache_dir)) {
 ```{r}
 data <- vector("list", length = 3)
 
-data[[1]] <- read.csv(file.path(data_dir, "Final counts_RNAseq_Synthego.txt"), sep = "\t", row.names = 1)
-data[[2]] <- read.csv(file.path(data_dir, "gene_count_NCRAD.txt"), sep = "\t", row.names = 1)
+data[[1]] <- read.delim(file.path(data_dir, "Final counts_RNAseq_Synthego.txt"), row.names = 1)
+data[[2]] <- read.delim(file.path(data_dir, "gene_count_NCRAD.txt"), row.names = 1)
 
 # Data uses ENSEMBL IDs by default but includes gene symbols.
 # Use one of the datasets to create a conversion table.
@@ -173,7 +173,7 @@ cache <- file.path(cache_dir, "bowles.qs")
 if (file.exists(cache)) {
   data[[3]] <- qs::qread(cache)
 } else {
-  data[[3]] <- read.csv(file.path(data_dir, "GSE260517_star_gene.txt"), sep = "\t")
+  data[[3]] <- read.delim(file.path(data_dir, "GSE260517_star_gene.txt"))
   data[[3]]$gid <- sub("\\..*", "", data[[3]]$gid)
   data[[3]] <- aggregate(. ~ gid, data = data[[3]], FUN = mean)
   rownames(data[[3]]) <- data[[3]]$gid
