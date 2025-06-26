@@ -38,6 +38,14 @@ setwd(dirname(parent.frame(2)$ofile)) # Move to location of this file.
 xfun::Rscript_call(
   rmarkdown::render,
   list(
+    file.path("s305n_clines_rnaseq_ALL.Rmd"),
+    output_file = file.path("..", "results", "s305n_clines_rnaseq_ALL.html"),
+    envir = new.env()
+  )
+)
+xfun::Rscript_call(
+  rmarkdown::render,
+  list(
     file.path("s305n_clines_rnaseq_HET.Rmd"),
     output_file = file.path("..", "results", "s305n_clines_rnaseq_HET.html"),
     envir = new.env()
