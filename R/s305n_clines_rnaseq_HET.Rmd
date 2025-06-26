@@ -249,9 +249,9 @@ cols <- colnames(data[[3]])
 meta[[3]] <- data.frame(
   sample = cols,
   timepoint = factor(sub(".*_(6W|8W)$", "\\1", cols)),
-  genotype = factor(sub(".*_(NW1B10|NWBB7)_[68]W$", "\\1", cols)),
+  genotype = factor(sub(".*_(NWBB7|NW1B10)_[68]W$", "\\1", cols)),
   dataset = rep("Bowles NCRAD", times = length(cols)),
-  group = ifelse(sub(".*_(NW1B10|NWBB7)_[68]W$", "\\1", cols) == "NWBB7", yes = "WT", no = "S305N")
+  group = ifelse(sub(".*_(NWBB7|NW1B10)_[68]W$", "\\1", cols) == "NWBB7", yes = "WT", no = "S305N")
 )
 
 meta_comb <- do.call(rbind, meta)
