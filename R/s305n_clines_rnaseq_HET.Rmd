@@ -440,8 +440,6 @@ features <- list(features[[3]], features[[1]], features[[2]])
 features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 mat <- mat[rownames(mat) %in% unlist(features), ]
 mat <- mat[match(unlist(features), rownames(mat)), ]
-mat <- mat[complete.cases(mat), ]
-features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 
 gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
 gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]
@@ -631,8 +629,6 @@ features <- list(features[[3]], features[[1]], features[[2]])
 features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 mat <- mat[rownames(mat) %in% unlist(features), ]
 mat <- mat[match(unlist(features), rownames(mat)), ]
-mat <- mat[complete.cases(mat), ]
-features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 
 gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
 gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]

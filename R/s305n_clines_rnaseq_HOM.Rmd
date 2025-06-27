@@ -426,10 +426,9 @@ for (i in seq_along(data)) {
 mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
 mat_full <- mat
 
+features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 mat <- mat[rownames(mat) %in% unlist(features), ]
 mat <- mat[match(unlist(features), rownames(mat)), ]
-mat <- mat[complete.cases(mat), ]
-features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 
 gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
 gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]
@@ -610,10 +609,9 @@ for (i in seq_along(data)) {
 mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
 mat_full <- mat
 
+features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 mat <- mat[rownames(mat) %in% unlist(features), ]
 mat <- mat[match(unlist(features), rownames(mat)), ]
-mat <- mat[complete.cases(mat), ]
-features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 
 gene_anno_sub <- gene_anno[gene_anno$ensembl %in% rownames(mat), ]
 gene_anno_sub <- gene_anno_sub[match(rownames(mat), gene_anno_sub$ensembl), ]
