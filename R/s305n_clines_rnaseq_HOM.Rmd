@@ -381,19 +381,25 @@ features[[3]] <- intersect(features[[1]], features[[2]])
 **DEG in Both Cell Lines**
 
 ```{r}
-cat(gene_anno[gene_anno$ensembl %in% features[[3]], ]$symbols)
+gene_anno_sub <- gene_anno[gene_anno$ensembl %in% features[[3]], ]
+gene_anno_sub <- gene_anno_sub[match(features[[3]], gene_anno_sub$ensembl), ]
+cat(gene_anno_sub$symbols)
 ```
 
 **DEG in Synthego Only**
 
 ```{r}
-cat(gene_anno[gene_anno$ensembl %in% features[[1]], ]$symbols)
+gene_anno_sub <- gene_anno[gene_anno$ensembl %in% features[[1]], ]
+gene_anno_sub <- gene_anno_sub[match(features[[1]], gene_anno_sub$ensembl), ]
+cat(gene_anno_sub$symbols)
 ```
 
 **DEG in NCRAD Only**
 
 ```{r}
-cat(gene_anno[gene_anno$ensembl %in% features[[2]], ]$symbols)
+gene_anno_sub <- gene_anno[gene_anno$ensembl %in% features[[2]], ]
+gene_anno_sub <- gene_anno_sub[match(features[[2]], gene_anno_sub$ensembl), ]
+cat(gene_anno_sub$symbols)
 ```
 
 **Heatmap**
@@ -564,19 +570,25 @@ features[[3]] <- intersect(features[[1]], features[[2]])
 **DEG in Both Cell Lines**
 
 ```{r}
-cat(gene_anno[gene_anno$ensembl %in% features[[3]], ]$symbols)
+gene_anno_sub <- gene_anno[gene_anno$ensembl %in% features[[3]], ]
+gene_anno_sub <- gene_anno_sub[match(features[[3]], gene_anno_sub$ensembl), ]
+cat(gene_anno_sub$symbols)
 ```
 
 **DEG in Synthego Only**
 
 ```{r}
-cat(gene_anno[gene_anno$ensembl %in% features[[1]], ]$symbols)
+gene_anno_sub <- gene_anno[gene_anno$ensembl %in% features[[1]], ]
+gene_anno_sub <- gene_anno_sub[match(features[[1]], gene_anno_sub$ensembl), ]
+cat(gene_anno_sub$symbols)
 ```
 
 **DEG in NCRAD Only**
 
 ```{r}
-cat(gene_anno[gene_anno$ensembl %in% features[[2]], ]$symbols)
+gene_anno_sub <- gene_anno[gene_anno$ensembl %in% features[[2]], ]
+gene_anno_sub <- gene_anno_sub[match(features[[2]], gene_anno_sub$ensembl), ]
+cat(gene_anno_sub$symbols)
 ```
 
 **Heatmap**
