@@ -436,6 +436,8 @@ for (i in seq_along(data)) {
 mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
 mat_full <- mat
 
+features <- list(features[[3]], features[[1]], features[[2]])
+features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 mat <- mat[rownames(mat) %in% unlist(features), ]
 mat <- mat[match(unlist(features), rownames(mat)), ]
 mat <- mat[complete.cases(mat), ]
@@ -476,9 +478,9 @@ draw(
     cluster_rows = FALSE,
     row_split = factor(
       c(
-        rep("DEG in Both Lines", times = length(features[[3]])),
-        rep("DEG in Synthego Only", times = length(features[[1]])),
-        rep("DEG in NCRAD Only", times = length(features[[2]]))
+        rep("DEG in Both Lines", times = length(features[[1]])),
+        rep("DEG in Synthego Only", times = length(features[[2]])),
+        rep("DEG in NCRAD Only", times = length(features[[3]]))
       ),
       levels = c("DEG in Both Lines", "DEG in Synthego Only", "DEG in NCRAD Only")
     ),
@@ -625,6 +627,8 @@ for (i in seq_along(data)) {
 mat <- mat[, c(1:4, 5, 7, 9, 6, 8, 10, 12, 11)]
 mat_full <- mat
 
+features <- list(features[[3]], features[[1]], features[[2]])
+features <- lapply(features, function(vec) vec[vec %in% rownames(mat)])
 mat <- mat[rownames(mat) %in% unlist(features), ]
 mat <- mat[match(unlist(features), rownames(mat)), ]
 mat <- mat[complete.cases(mat), ]
@@ -665,9 +669,9 @@ draw(
     cluster_rows = FALSE,
     row_split = factor(
       c(
-        rep("DEG in Both Lines", times = length(features[[3]])),
-        rep("DEG in Synthego Only", times = length(features[[1]])),
-        rep("DEG in NCRAD Only", times = length(features[[2]]))
+        rep("DEG in Both Lines", times = length(features[[1]])),
+        rep("DEG in Synthego Only", times = length(features[[2]])),
+        rep("DEG in NCRAD Only", times = length(features[[3]]))
       ),
       levels = c("DEG in Both Lines", "DEG in Synthego Only", "DEG in NCRAD Only")
     ),
