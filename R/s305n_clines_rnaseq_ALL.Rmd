@@ -503,6 +503,7 @@ draw(
     row_names_gp = gpar(fontsize = 8),
     column_title_gp = gpar(fontsize = 10, fontface = "bold"),
     show_column_names = FALSE,
+    rect_gp = gpar(col = "black", lwd = 0.25),
     heatmap_legend_param = list(
       title = "Scaled Log2CPM",
       title_gp = gpar(fontsize = 8, fontface = "bold"),
@@ -692,6 +693,7 @@ draw(
     row_names_gp = gpar(fontsize = 8),
     column_title_gp = gpar(fontsize = 10, fontface = "bold"),
     show_column_names = FALSE,
+    rect_gp = gpar(col = "black", lwd = 0.25),
     heatmap_legend_param = list(
       title = "Scaled Log2CPM",
       title_gp = gpar(fontsize = 8, fontface = "bold"),
